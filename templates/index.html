@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Data Extraction</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script> -->
+    <script>
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            const dataPoints = document.getElementById('dataPoints').value.trim();
+
+            if (files.length > 0 && dataPoints.length > 0) {
+                const formData = new FormData();
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    formData.append('images', file);
+                }
+                formData.append('dataPoints', dataPoints);
+
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById('data-table');
+                    table.innerHTML = ''; // Clear the table before rendering
+
+                    if (data.length === 0) {
+                        table.innerHTML = '<tr><td>No data extracted</td></tr>';
+                        return;
+                    }
+
+                    // Extract table headers dynamically from the first row
+                    const keys = Object.keys(data[0]);
+                    const headerRow = document.createElement('tr');
+
+                    keys.forEach(key => {
+                        const th = document.createElement('th');
+                        th.textContent = key;
+                        headerRow.appendChild(th);
+                    });
+                    table.appendChild(headerRow);
+
+                    // Populate table with data
+                    data.forEach(row => {
+                        const dataRow = document.createElement('tr');
+                        keys.forEach(key => {
+                            const td = document.createElement('td');
+                            td.textContent = row[key] ? row[key] : 'N/A';
+                            td.setAttribute('contenteditable', 'true');  // Make cells editable
+                            td.addEventListener('blur', function() {
+                                // Capture the updated value when editing is finished
+                                console.log('Updated value: ', td.textContent);
+                                // You can implement code here to send updated values back to the server if necessary
+                            });
+                            dataRow.appendChild(td);
+                        });
+                        table.appendChild(dataRow);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert("Please upload an image and enter at least one data point.");
+            }
+        }
+
+        function exportTableToCSV(filename) {
+            const csv = [];
+            const rows = document.querySelectorAll("#data-table tr");
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = [], cols = rows[i].querySelectorAll("td, th");
+
+                for (let j = 0; j < cols.length; j++) {
+                    row.push(cols[j].innerText);
+                }
+
+                csv.push(row.join(","));
+            }
+
+            // Create a CSV file and download it
+            const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+            const downloadLink = document.createElement("a");
+            downloadLink.download = filename;
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+        }
+
+        // src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"
+        // function exportTableToExcel() {
+        //     const table = document.getElementById("data-table");
+        //     const ws = XLSX.utils.table_to_sheet(table);  // Convert the table to a worksheet
+        //     const wb = XLSX.utils.book_new();             // Create a new workbook
+        //     XLSX.utils.book_append_sheet(wb, ws, "Extracted Data");  // Append the sheet to the workbook
+
+        //     // Write the workbook and trigger download
+        //     XLSX.writeFile(wb, "extracted_data.xlsx");
+        // }
+
+    </script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Upload an Image</h1>
+        
+        <!-- Data Points Selection Form -->
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <form id="data-points-form">
+                    <h5>Enter Data Points to Extract (comma-separated):</h5>
+                    <input type="text" id="dataPoints" class="form-control" placeholder="e.g., project_name, revenue, ebitda">
+                </form>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mt-3">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="fileInput" class="form-label">Choose an image to extract data:</label>
+                    <input type="file" id="fileInput" class="form-control" accept="image/*" multiple onchange="handleFileSelect(event)">
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-center mt-5">Extracted Data</h2>
+        <div class="table-responsive">
+            <table id="data-table" class="table table-striped table-bordered mt-3">
+                <!-- Table will be populated here -->
+            </table>
+        </div>
+
+        <!-- Add buttons for exporting data -->
+        <div class="text-center mt-3">
+            <button onclick="exportTableToCSV('extracted_data.csv')" class="btn btn-primary">Export to CSV</button>
+            <!-- <button onclick="exportTableToExcel()" class="btn btn-secondary">Export to Excel</button> -->
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
